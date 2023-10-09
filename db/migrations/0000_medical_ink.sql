@@ -9,3 +9,11 @@ CREATE TABLE IF NOT EXISTS "users" (
 	CONSTRAINT "users_discriminator_unique" UNIQUE("discriminator"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
+
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_trigger BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE set_updated_at();
