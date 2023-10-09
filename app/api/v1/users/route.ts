@@ -1,4 +1,4 @@
-import { db } from "@/db/db";
+import { db, DatabaseError } from "@/db/db";
 import { users } from "@/db/schema";
 import { createSelectSchema } from "drizzle-zod";
 import { createInsertSchema } from "drizzle-zod";
@@ -27,37 +27,70 @@ export const userInsertResSchema = createSelectSchema(users).pick({
   discriminator: true,
 });
 
-type UserInsertRes = z.infer<typeof userInsertResSchema>;
+type UserInsertReturn = z.infer<typeof userInsertResSchema>;
 
-export async function POST(req: NextRequest): Promise<
-  NextResponse<
-    | UserInsertRes
-    | {
-        message: z.ZodError<UserInsertReqSchema>;
-      }
-  >
-> {
+type UserInsertRes =
+  | {
+      data: UserInsertReturn;
+    }
+  | {
+      validateError?: z.ZodError<UserInsertReqSchema>;
+      uniqueError?: "users_discriminator_unique" | "users_email_unique";
+      error?: "internal error";
+    };
+
+export async function POST(
+  req: NextRequest
+): Promise<NextResponse<UserInsertRes>> {
   // bodyのバリデーション
   const insertUserResult = userInsertReqSchema.safeParse(await req.json());
 
   if (!insertUserResult.success) {
     return NextResponse.json(
-      { message: insertUserResult.error },
+      { validateError: insertUserResult.error },
       {
         status: 400,
       }
     );
   }
 
-  // insertとselectを行う
-  const usersRes = await db
-    .insert(users)
-    .values(insertUserResult.data)
-    .returning({
-      name: users.name,
-      email: users.email,
-      discriminator: users.discriminator,
-    });
-
-  return NextResponse.json(usersRes[0]);
+  try {
+    // insertとselectを行う
+    const usersRes = await db
+      .insert(users)
+      .values(insertUserResult.data)
+      .returning({
+        name: users.name,
+        email: users.email,
+        discriminator: users.discriminator,
+      });
+    return NextResponse.json(
+      { data: usersRes[0] },
+      {
+        status: 201,
+      }
+    );
+  } catch (e) {
+    // 一意制約違反の場合は409を返す
+    if (e instanceof DatabaseError) {
+      if (
+        e.constraint === "users_discriminator_unique" ||
+        e.constraint === "users_email_unique"
+      ) {
+        return NextResponse.json(
+          { uniqueError: e.constraint },
+          {
+            status: 409,
+          }
+        );
+      }
+    }
+    // それ以外のエラーは500を返す
+    return NextResponse.json(
+      { error: "internal error" },
+      {
+        status: 500,
+      }
+    );
+  }
 }
