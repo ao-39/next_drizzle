@@ -35,7 +35,7 @@ type UserInsertRes =
     }
   | {
       validateError?: z.ZodError<UserInsertReqSchema>;
-      uniqueError?: "users_discriminator_unique" | "users_email_unique";
+      constraintError?: "users_discriminator_unique" | "users_email_unique";
       error?: "internal error";
     };
 
