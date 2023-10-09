@@ -19,6 +19,8 @@ export const userInsertReqSchema = createInsertSchema(users, {
   discriminator: true,
 });
 
+type UserInsertReqSchema = z.infer<typeof userInsertReqSchema>;
+
 export const userInsertResSchema = createSelectSchema(users).pick({
   name: true,
   email: true,
@@ -27,18 +29,35 @@ export const userInsertResSchema = createSelectSchema(users).pick({
 
 type UserInsertRes = z.infer<typeof userInsertResSchema>;
 
-export async function POST(
-  req: NextRequest
-): Promise<NextResponse<UserInsertRes>> {
+export async function POST(req: NextRequest): Promise<
+  NextResponse<
+    | UserInsertRes
+    | {
+        message: z.ZodError<UserInsertReqSchema>;
+      }
+  >
+> {
   // bodyのバリデーション
-  const insertUser = userInsertReqSchema.parse(await req.json());
+  const insertUserResult = userInsertReqSchema.safeParse(await req.json());
+
+  if (!insertUserResult.success) {
+    return NextResponse.json(
+      { message: insertUserResult.error },
+      {
+        status: 400,
+      }
+    );
+  }
 
   // insertとselectを行う
-  const usersRes = await db.insert(users).values(insertUser).returning({
-    name: users.name,
-    email: users.email,
-    discriminator: users.discriminator,
-  });
+  const usersRes = await db
+    .insert(users)
+    .values(insertUserResult.data)
+    .returning({
+      name: users.name,
+      email: users.email,
+      discriminator: users.discriminator,
+    });
 
   return NextResponse.json(usersRes[0]);
 }
