@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-migration": "drizzle-kit generate:pg --out db/migrations --schema db/schema.ts",
+    "migrate": "ts-node -P db/db.tsconfig.json db/migrate"
   },
   "dependencies": {
     "dotenv": "^16.3.1",
