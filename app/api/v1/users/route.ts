@@ -78,7 +78,7 @@ export async function POST(
         e.constraint === "users_email_unique"
       ) {
         return NextResponse.json(
-          { uniqueError: e.constraint },
+          { constraintError: e.constraint },
           {
             status: 409,
           }
