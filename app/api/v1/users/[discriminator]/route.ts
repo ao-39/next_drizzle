@@ -149,3 +149,37 @@ export async function PATCH(
     status: 204,
   });
 }
+
+export async function DELETE(
+  request: NextRequest,
+  {
+    params,
+  }: {
+    params: { discriminator: string };
+  }
+): Promise<NextResponse<null | { error?: "not found" | "internal error" }>> {
+  try {
+    const res = await db
+      .delete(users)
+      .where(eq(users.discriminator, params.discriminator));
+    if (res.rowCount === 0) {
+      return NextResponse.json(
+        {
+          error: "not found",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+  } catch (e) {
+    // それ以外のエラーは500を返す
+    return NextResponse.json(
+      { error: "internal error" },
+      {
+        status: 500,
+      }
+    );
+  }
+  return new NextResponse(null, { status: 204 });
+}
