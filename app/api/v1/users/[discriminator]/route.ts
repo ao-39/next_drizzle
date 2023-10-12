@@ -122,5 +122,3 @@ export async function DELETE(
   }
   return NextResponse.json(null, { status: 204 });
 }
-
-type DeleteResType = ReturnType<typeof DELETE>;
